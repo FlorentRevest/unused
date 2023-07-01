@@ -1,0 +1,35 @@
+#!/usr/bin/python3
+
+import os
+import sys
+import pyinotify
+
+# Monitor the first argument, if provided, or the current working directory
+monitored_directory = sys.argv[1] if len(sys.argv) > 1 else os.getcwd()
+
+# Keep track of all paths that get accessed while we run
+accessed_files = set()
+def on_access(event):
+    if event.mask == pyinotify.IN_Q_OVERFLOW:
+        print("inotify queue overflowed. list could be wrong", file=sys.stderr)
+    else:
+        accessed_files.add(event.pathname)
+
+# Configure an inotify watcher for all open & new file events in this directory
+watch_mask = pyinotify.IN_OPEN | pyinotify.IN_MOVED_TO | pyinotify.IN_CREATE
+wm = pyinotify.WatchManager()
+wm.add_watch(monitored_directory, watch_mask, rec=True, auto_add=True)
+notifier = pyinotify.Notifier(wm, on_access)
+
+# Keep running until canceled by Ctrl-C
+try:
+  notifier.loop()
+except KeyboardInterrupt:
+  pass
+
+# Iterate over all files in the monitored directory and print unaccessed paths
+for dir, _, files in os.walk(monitored_directory):
+  for file in files:
+    path = os.path.join(dir, file)
+    if path not in accessed_files:
+      print(path)

@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Setup a test directory, subdirectory and file
+mkdir -p /tmp/unused-test/subdir
+trap "rm -r /tmp/unused-test/" EXIT
+touch /tmp/unused-test/subdir/file
+
+# Test Case 1: File is *not* used
+OUT=`timeout -s INT 1 ./unused /tmp/unused-test/`
+if [[ $OUT == "/tmp/unused-test/subdir/file" ]]; then
+  echo "[File not used] PASSED"
+else
+  echo "[File not used] FAILED, got $OUT"
+fi
+
+# Test Case 2: File *is* used
+timeout -s INT 2 ./unused /tmp/unused-test/ > /tmp/unused-test-output &
+sleep 1
+touch /tmp/unused-test/subdir/file
+wait
+OUT=`cat /tmp/unused-test-output`
+rm /tmp/unused-test-output
+if [[ $OUT == "" ]]; then
+  echo "[File used]     PASSED"
+else
+  echo "[File used]     FAILED, got $OUT"
+fi
+
